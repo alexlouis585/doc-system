@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>工行科公文預警系統 V1.30</title>
+    <title>工行科公文預警系統 V1.31</title>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; padding: 20px; background-color: #f4f4f9; }
         
@@ -100,7 +100,7 @@
 
         td:nth-child(3), td:nth-child(4), td:nth-child(6), td:nth-child(7), td:nth-child(8), td:nth-child(9) { text-align: center; }
 
-        /* 欄位寬度配置 */
+        /* V1.31 修正: 欄位寬度配置 */
         th:nth-child(1) { width: 110px; } /* 操作 */
         th:nth-child(3) { width: 80px; }  /* 承辦人 */
         th:nth-child(4) { width: 160px; } /* 文號 */
@@ -191,7 +191,7 @@
         // ==========================================
         // 【請務必填入 重新部署後 的 API 網址】
         // ==========================================
-        const API_URL = "https://script.google.com/macros/s/AKfycbzPURrbEL2QDTvtpTYsN0b2q0wPMpwoxUX12s-4VEH8dnwH4h6GH8YbG8jDbJVXlmx2ag/exec"; 
+        const API_URL = "https://script.google.com/macros/s/AKfycbz1r5DkN9zUpndc9smHB_jpzh19x5lOd0EY9JAleRIPS3FgvJ91KjOpBUGhBNzGIR6tqw/exec"; 
         
         let allDocs = []; 
         let isClosedSectionExpanded = false;
@@ -573,9 +573,8 @@
             } else {
                 const statusHtml = isClosed ? '<span class="status-closed">已結案</span>' : '<span class="status-open">辦理中</span>';
                 
-                // V1.30 修改: 如果剩餘天數為0，顯示「今天到期」
+                // V1.31 功能: 0天顯示今天到期
                 const daysDisplay = (diffDays === 0) ? "今天到期" : `${diffDays} 天`;
-                
                 const resultText = isClosed ? (doc.closeDate > doc.deadline ? '<span class="result-overdue">逾期結案</span>' : '<span class="result-ok">未逾期</span>') : daysDisplay;
                 
                 const btnText = isClosed ? '修改' : '確認';
@@ -651,8 +650,4 @@
                     }
                 }
             });
-            if (count > 0) setTimeout(() => alert(`【預警】有 ${count} 件需注意！\n\n${alertMsg}`), 500);
-        }
-    </script>
-</body>
-</html>
+            if (count > 0) setTimeout(() => alert(`【預警】有 ${count} 件需注意！\n\n${alertMsg}`), 5
