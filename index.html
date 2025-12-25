@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>工行科公文預警系統 V1.28</title>
+    <title>工行科公文預警系統 V1.29</title>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; padding: 20px; background-color: #f4f4f9; }
         
@@ -100,14 +100,14 @@
 
         td:nth-child(3), td:nth-child(4), td:nth-child(6), td:nth-child(7), td:nth-child(8), td:nth-child(9) { text-align: center; }
 
-        /* V1.28 修正: 縮減剩餘天數寬度，加大主旨寬度 */
+        /* V1.29 修正: 欄位寬度配置 */
         th:nth-child(1) { width: 110px; } /* 操作 */
         th:nth-child(3) { width: 80px; }  /* 承辦人 */
         th:nth-child(4) { width: 160px; } /* 文號 */
-        th:nth-child(5) { width: 220px; } /* 主旨 (加大至 220px) */
+        th:nth-child(5) { width: 220px; } /* 主旨 (加大) */
         th:nth-child(6), th:nth-child(7) { width: 90px; } /* 日期 */
         th:nth-child(8) { width: 160px; } /* 結案日期 */
-        th:nth-child(9) { width: 80px; }  /* 剩餘天數 (縮減至 80px) */
+        th:nth-child(9) { width: 80px; }  /* 剩餘天數 (縮小) */
 
         .edit-input { width: 100%; padding: 4px; box-sizing: border-box; border: 1px solid #007bff; border-radius: 4px; font-family: inherit; font-size: 0.95em; }
         .warn-yellow { background-color: #fff3cd !important; color: #856404; font-weight: bold; }
@@ -191,7 +191,7 @@
         // ==========================================
         // 【請務必填入 重新部署後 的 API 網址】
         // ==========================================
-        const API_URL = "https://script.google.com/macros/s/AKfycbzPURrbEL2QDTvtpTYsN0b2q0wPMpwoxUX12s-4VEH8dnwH4h6GH8YbG8jDbJVXlmx2ag/exec"; 
+        const API_URL = "https://script.google.com/macros/s/AKfycbxDMtNrRi3e3jwvEjN7xHIKMJYiHU6pVjF_zsApon6V2caVCEqipJ5SyRKQCQ7M5dAPiQ/exec"; 
         
         let allDocs = []; 
         let isClosedSectionExpanded = false;
@@ -642,7 +642,7 @@
                     if (diff <= 4) {
                         count++;
                         let u = diff <= 1 ? "【緊急】" : (diff <= 2 ? "【急】" : "【提醒】");
-                        alertMsg += `● ${u} 文號 ${doc.docNo} (剩 ${diff} 工作天)\n`;
+                        alertMsg += `● ${u} 文號 ${doc.docNo} (剩 ${diff} 天)\n`;
                     }
                 }
             });
