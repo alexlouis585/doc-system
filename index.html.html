@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工行科公文預警系統</title>
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; padding: 20px; background-color: #f4f4f9; }
+        
+        /* 標題區塊 Flex 設定 */
+        h2 { 
+            color: #333; 
+            border-left: 5px solid #007bff; 
+            padding-left: 10px; 
+            margin-bottom: 20px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            flex-wrap: wrap; /* 允許小螢幕換行 */
+            gap: 10px;
+        }
+        
+        /* 連線警示文字樣式 (移至標題列) */
+        #connection-warning {
+            color: red; 
+            font-size: 0.6em; 
+            background: #ffecec; 
+            padding: 5px 10px; 
+            border-radius: 5px; 
+            transition: opacity 0.5s;
+            margin: 0; /* 移除預設邊距 */
+            font-weight: normal; /* 不加粗 */
+            margin-left: auto; /* 將其推向右側，緊鄰按鈕左邊 */
+            margin-right: 10px;
+        }
+
+        #loadingOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8); z-index: 9999;
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .spinner {
+            border: 8px solid #f3f3f3; border-top: 8px solid #007bff;
+            border-radius: 50%; width: 50px; height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-text { margin-top: 15px; font-weight: bold; color: #555; }
+
+        h3 { color: #2c3e50; margin-top: 10px; border-bottom: 2px solid #ddd; padding-bottom: 5px; font-size: 1.2em; }
+        .clickable-header { cursor: pointer; user-select: none; transition: color 0.2s; }
+        .clickable-header:hover { color: #17a2b8; }
+        .section-divider { border: 0; border-top: 4px double #b0b0b0; margin: 50px 0 30px 0; }
+
+        .input-group { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-end; }
+        .input-item { display: flex; flex-direction: column; }
+        label { font-size: 0.9em; margin-bottom: 5px; font-weight: bold; }
+        
+        /* 一般輸入框樣式 */
+        input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        
+        /* 重點功能 2: 當輸入框 focus 時隱藏 placeholder */
+        input:focus::placeholder {
+            color: transparent;
+        }
+        
+        button { 
+            padding: 9px 20px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-family: "Microsoft JhengHei", sans-serif;
+            font-size: 16px; 
+            line-height: 1.2;
+        }
+        button:active { transform: translateY(1px); }
+
+        .add-btn { background-color: #28a745; color: white; }
+        .add-btn:hover { background-color: #218838; }
+        .clear-btn { background-color: #ffc107; color: #333; }
+        .clear-btn:hover { background-color: #e0a800; }
+        .test-btn { background-color: #6c757d; color: white; }
+        .test-btn:hover { background-color: #5a6268; }
+
+        .table-btn { padding: 5px 2px; font-size: 14px; width: auto; flex: 1; }
+        .delete-btn { background-color: #dc3545; color: white; }
+        .delete-btn:hover { background-color: #c82333; }
+        .edit-btn { background-color: #17a2b8; color: white; } 
+        .edit-btn:hover { background-color: #138496; }
+        .ok-btn { background-color: #28a745; color: white; }
+        .ok-btn:hover { background-color: #218838; }
+        .cancel-btn { background-color: #6c757d; color: white; }
+        .cancel-btn:hover { background-color: #5a6268; }
+
+        .action-btns { display: flex; gap: 4px; justify-content: space-between; }
+        .confirm-btn { background-color: #17a2b8; color: white; padding: 5px 10px; font-size: 14px; margin-left: 5px; }
+        
+        table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); table-layout: fixed; margin-bottom: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; word-wrap: break-word; font-size: 0.95em; vertical-align: top; }
+        th { background-color: #2c3e50; color: white; text-align: center; }
+        
+        /* 重點功能 1: 將結案日期(第7欄)加入置中列表 */
+        td:nth-child(2), td:nth-child(3), td:nth-child(5), td:nth-child(6), td:nth-child(7), td:nth-child(8) { text-align: center; }
+
+        th:nth-child(1) { width: 110px; } 
+        th:nth-child(2) { width: 70px; } 
+        th:nth-child(3) { width: 100px; }
+        th:nth-child(4) { width: 210px; } 
+        th:nth-child(5), th:nth-child(6) { width: 90px; }
+        th:nth-child(7) { width: 160px; } 
+        th:nth-child(8) { width: 80px; } 
+
+        .edit-input { width: 100%; padding: 4px; box-sizing: border-box; border: 1px solid #007bff; border-radius: 4px; font-family: inherit; font-size: 0.95em; }
+        .warn-yellow { background-color: #fff3cd !important; color: #856404; font-weight: bold; }
+        .warn-red { background-color: #f8d7da !important; color: #721c24; font-weight: bold; }
+        .warn-deepred { background-color: #b02a37 !important; color: #fff; font-weight: bold; }
+        .status-closed { color: #28a745; font-weight: bold; }
+        .status-open { color: #dc3545; }
+        .warn-deepred .status-open { color: #fff !important; }
+        .result-ok { color: #28a745; font-weight: bold; }
+        .result-overdue { color: #dc3545; font-weight: bold; }
+
+        .subject-content { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; cursor: pointer; line-height: 1.5em; max-height: 4.5em; transition: max-height 0.3s ease; }
+        .subject-content:hover { opacity: 0.8; }
+        .subject-content.expanded { -webkit-line-clamp: unset; max-height: none; overflow: visible; background-color: rgba(255,255,255,0.9); box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 4px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text">資料同步中...</div>
+    </div>
+
+    <h2>
+        <div>工行科公文預警系統</div>
+        <div style="display:flex; align-items:center;">
+            <p id="connection-warning">⚠️ 系統已連接至 Google 雲端資料庫，操作時請保持網路連線。</p>
+            <button type="button" class="test-btn" onclick="testConnection()">連線檢查</button>
+        </div>
+    </h2>
+
+    <div class="input-group">
+        <div class="input-item">
+            <label>文號</label>
+            <input type="text" id="docNo" placeholder="例:1140001234">
+        </div>
+        <div class="input-item">
+            <label>主旨</label>
+            <input type="text" id="subject" placeholder="請輸入主旨" style="width: 250px;">
+        </div>
+        <div class="input-item">
+            <label>收創日期</label>
+            <input type="text" id="createDate" placeholder="例:1140101" maxlength="10" oninput="calculateDeadline()">
+        </div>
+        <div class="input-item">
+            <label>二展期限 (自動計算)</label>
+            <input type="text" id="deadline" placeholder="收創日期+23工作天" maxlength="10" onchange="checkDateLogic()">
+        </div>
+        <button type="button" class="add-btn" onclick="addDoc()">新增列管</button>
+        <button type="button" class="clear-btn" onclick="clearInputs()">清除內容</button>
+    </div>
+
+    <h3 id="openSectionTitle">📂 列管中公文（讀取中...）</h3>
+    <table>
+        <thead>
+            <tr><th>操作</th><th>狀態</th><th>文號</th><th>主旨</th><th>收創日期</th><th>二展期限</th><th>結案日期</th><th>剩餘天數</th></tr>
+        </thead>
+        <tbody id="openDocList"></tbody>
+    </table>
+
+    <hr class="section-divider">
+
+    <h3 id="closedSectionTitle" class="clickable-header" onclick="toggleClosedSection()" title="點擊展開/收合">🗄️ 已結案公文 ▶</h3>
+    <table id="closedTable" style="display: none;">
+        <thead>
+            <tr><th>操作</th><th>狀態</th><th>文號</th><th>主旨</th><th>收創日期</th><th>二展期限</th><th>結案日期</th><th>剩餘天數</th></tr>
+        </thead>
+        <tbody id="closedDocList"></tbody>
+    </table>
+
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            alert(`【發生系統錯誤】\n訊息: ${message}\n行號: ${lineno}\n請截圖告知工程師。`);
+            return true;
+        };
+
+        // ==========================================
+        // 【請務必填入 重新部署後 的 API 網址】
+        // ==========================================
+        const API_URL = "https://script.google.com/macros/s/AKfycbzPURrbEL2QDTvtpTYsN0b2q0wPMpwoxUX12s-4VEH8dnwH4h6GH8YbG8jDbJVXlmx2ag/exec"; 
+        
+        let allDocs = []; 
+        let isClosedSectionExpanded = false;
+        let editingId = null; 
+
+        // 假日設定 (114 & 115)
+        const holidays = [
+            '2025-01-01', '2025-01-27', '2025-01-28', '2025-01-29', '2025-01-30', '2025-01-31', 
+            '2025-02-28', '2025-04-03', '2025-04-04', '2025-05-30', '2025-10-06', '2025-10-10',
+            '2026-01-01', '2026-02-16', '2026-02-17', '2026-02-18', '2026-02-19', '2026-02-20', 
+            '2026-02-27', '2026-04-03', '2026-04-06', '2026-06-19', '2026-09-25', '2026-10-09'
+        ];
+        const makeUpWorkDays = ['2025-02-08'];
+
+        window.onload = function() {
+            if (!API_URL) {
+                alert("請設定 API_URL"); return;
+            }
+            fetchData();
+        };
+
+        function calculateDeadline() {
+            try {
+                const createDateStr = document.getElementById('createDate').value.trim();
+                if (!createDateStr) return;
+                const isoStartDate = rocToIso(createDateStr);
+                if (!isoStartDate) return; 
+                const targetDate = addWorkDays(isoStartDate, 23);
+                document.getElementById('deadline').value = displayROC(targetDate);
+            } catch (e) { console.error(e); }
+        }
+
+        function calculateDeadlineForEdit(id) {
+            try {
+                const createDateStr = document.getElementById('edit_create_' + id).value.trim();
+                if (!createDateStr) return;
+                const isoStartDate = rocToIso(createDateStr);
+                if (!isoStartDate) return; 
+                const targetDate = addWorkDays(isoStartDate, 23);
+                document.getElementById('edit_deadline_' + id).value = displayROC(targetDate);
+            } catch (e) { console.error(e); }
+        }
+
+        function addWorkDays(startDateStr, daysToAdd) {
+            let currentDate = new Date(startDateStr);
+            let addedDays = 0;
+            if (isWorkDay(currentDate)) addedDays = 1; 
+            while (addedDays < daysToAdd) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                if (isWorkDay(currentDate)) addedDays++;
+            }
+            const y = currentDate.getFullYear();
+            const m = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+            const d = currentDate.getDate().toString().padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function isWorkDay(date) {
+            const y = date.getFullYear();
+            const m = (date.getMonth() + 1).toString().padStart(2, '0');
+            const d = date.getDate().toString().padStart(2, '0');
+            const dateString = `${y}-${m}-${d}`;
+            const dayOfWeek = date.getDay();
+            if (makeUpWorkDays.includes(dateString)) return true;
+            if (holidays.includes(dateString)) return false;
+            if (dayOfWeek === 0 || dayOfWeek === 6) return false;
+            return true;
+        }
+
+        function testConnection() {
+            toggleLoading(true);
+            fetch(API_URL + "?action=read")
+                .then(response => response.text().then(text => {
+                    try {
+                        JSON.parse(text);
+                        alert("✅ 連線成功！");
+                        autoHideWarning();
+                    } catch (e) {
+                        alert("❌ 連線異常，可能是權限不足。\n回應內容: " + text.substring(0, 50));
+                    }
+                }))
+                .catch(error => alert("❌ 網路錯誤: " + error))
+                .finally(() => toggleLoading(false));
+        }
+
+        function autoHideWarning() {
+            const warning = document.getElementById('connection-warning');
+            if (warning) {
+                setTimeout(() => {
+                    warning.style.opacity = '0'; 
+                    setTimeout(() => warning.style.display = 'none', 500);
+                }, 3000);
+            }
+        }
+
+        function toggleLoading(show) {
+            const el = document.getElementById('loadingOverlay');
+            if(el) el.style.display = show ? 'flex' : 'none';
+        }
+
+        function fetchData() {
+            toggleLoading(true);
+            fetch(API_URL + "?action=read")
+                .then(res => res.json())
+                .then(result => {
+                    if (result.status === "success") {
+                        allDocs = result.data;
+                        renderTable();
+                        checkAlerts();
+                        autoHideWarning();
+                    } else {
+                        alert("讀取失敗：" + result.message);
+                    }
+                })
+                .catch(err => alert("連線錯誤: " + err))
+                .finally(() => toggleLoading(false));
+        }
+
+        function addDoc() {
+            if (editingId) {
+                alert("請先完成或取消目前的修改操作。");
+                return;
+            }
+            const subject = document.getElementById('subject').value.trim();
+            const docNo = document.getElementById('docNo').value.trim();
+            const rawCreateDate = document.getElementById('createDate').value.trim();
+            const rawDeadline = document.getElementById('deadline').value.trim();
+
+            if (!subject || !docNo || !rawCreateDate || !rawDeadline) {
+                alert('所有欄位皆為必填。'); return;
+            }
+            const isoCreateDate = rocToIso(rawCreateDate);
+            const isoDeadline = rocToIso(rawDeadline);
+            if (!isoCreateDate || !isoDeadline) {
+                alert('日期格式錯誤 (例:1140101)'); return;
+            }
+            if (isoDeadline < isoCreateDate) {
+                if(!confirm('警示：【二展期限】早於【收創日期】，確定要新增嗎？')) return;
+            }
+
+            toggleLoading(true);
+            
+            fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'add',
+                    id: Date.now(),
+                    subject: subject,
+                    docNo: docNo,
+                    createDate: isoCreateDate,
+                    deadline: isoDeadline
+                })
+            })
+            .then(res => res.json())
+            .then(result => {
+                if(result.status === "success") {
+                    clearInputs();
+                    fetchData();
+                } else {
+                    alert("新增失敗：" + result.message);
+                }
+            })
+            .catch(err => alert("連線錯誤: " + err))
+            .finally(() => toggleLoading(false));
+        }
+
+        function confirmUpdate(id) {
+            const subject = document.getElementById('edit_subject_' + id).value.trim();
+            const docNo = document.getElementById('edit_docNo_' + id).value.trim();
+            const rawCreateDate = document.getElementById('edit_create_' + id).value.trim();
+            const rawDeadline = document.getElementById('edit_deadline_' + id).value.trim();
+
+            if (!subject || !docNo || !rawCreateDate || !rawDeadline) {
+                alert('所有欄位皆為必填。'); return;
+            }
+            const isoCreateDate = rocToIso(rawCreateDate);
+            const isoDeadline = rocToIso(rawDeadline);
+            if (!isoCreateDate || !isoDeadline) {
+                alert('日期格式錯誤 (例:1140101)'); return;
+            }
+            
+            toggleLoading(true);
+            
+            fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'edit',
+                    id: id,
+                    subject: subject,
+                    docNo: docNo,
+                    createDate: isoCreateDate,
+                    deadline: isoDeadline
+                })
+            })
+            .then(res => res.json())
+            .then(result => {
+                if(result.status === "success") {
+                    editingId = null; 
+                    fetchData();
+                } else {
+                    alert("修改失敗：" + result.message);
+                }
+            })
+            .catch(err => alert("連線錯誤: " + err))
+            .finally(() => toggleLoading(false));
+        }
+
+        function editDoc(id) {
+            if (editingId) {
+                if(!confirm("您正在編輯另一筆資料，要放棄並編輯此筆嗎？")) return;
+            }
+            editingId = id;
+            renderTable(); 
+        }
+
+        function cancelEdit() {
+            editingId = null;
+            renderTable();
+        }
+
+        function clearInputs() {
+            document.querySelectorAll('.input-group input').forEach(el => el.value = '');
+        }
+
+        function deleteDoc(id) {
+            if(!confirm('確定刪除此筆資料？')) return;
+            toggleLoading(true);
+            fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'delete', id: id })
+            })
+            .then(res => res.json())
+            .then(result => {
+                if(result.status === "success") fetchData();
+                else alert("刪除失敗：" + result.message);
+            })
+            .catch(err => alert("連線錯誤"))
+            .finally(() => toggleLoading(false));
+        }
+
+        function manualClose(id) {
+            const inputId = 'close_date_' + id;
+            const rawDate = document.getElementById(inputId).value.trim();
+            let isoDate = "";
+            
+            if (rawDate !== "") {
+                isoDate = rocToIso(rawDate);
+                if (!isoDate) { alert('日期格式錯誤 (例:1140101)'); return; }
+            } else {
+                if(!confirm("確定要將此案恢復為「辦理中」狀態嗎？")) return;
+                // 空字串會被送出，後端將清空該欄位
+            }
+
+            toggleLoading(true);
+            fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'update', id: id, closeDate: isoDate })
+            })
+            .then(res => res.json())
+            .then(result => {
+                if(result.status === "success") {
+                    fetchData(); // 重新讀取，若 closeDate 為空，會自動分類到列管區
+                } else {
+                    alert("更新失敗：" + result.message);
+                }
+            })
+            .catch(err => alert("連線錯誤"))
+            .finally(() => toggleLoading(false));
+        }
+
+        function toggleClosedSection() {
+            isClosedSectionExpanded = !isClosedSectionExpanded;
+            const table = document.getElementById('closedTable');
+            table.style.display = isClosedSectionExpanded ? 'table' : 'none';
+            renderClosedTitle();
+        }
+        
+        function renderClosedTitle() {
+            let closedDocs = allDocs.filter(d => d.closeDate);
+            const arrow = isClosedSectionExpanded ? '▼' : '▶';
+            document.getElementById('closedSectionTitle').textContent = `🗄️ 已結案公文（${closedDocs.length} 件） ${arrow}`;
+        }
+
+        function renderTable() {
+            const openTbody = document.getElementById('openDocList');
+            const closedTbody = document.getElementById('closedDocList');
+            openTbody.innerHTML = '';
+            closedTbody.innerHTML = '';
+            
+            const today = new Date(); today.setHours(0,0,0,0);
+            
+            // 重要：這裡的 filter 會確保如果 closeDate 是空字串，它會回到 openDocs
+            let openDocs = allDocs.filter(d => !d.closeDate);
+            let closedDocs = allDocs.filter(d => d.closeDate);
+
+            document.getElementById('openSectionTitle').textContent = `📂 列管中公文（${openDocs.length} 件）`;
+            renderClosedTitle();
+
+            openDocs.sort((a, b) => {
+                const dateA = new Date(a.deadline);
+                const dateB = new Date(b.deadline);
+                if (dateA < dateB) return -1;
+                if (dateA > dateB) return 1;
+                return String(a.docNo).localeCompare(String(b.docNo), 'zh-Hant-TW', { numeric: true });
+            });
+            closedDocs.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+
+            openDocs.forEach(doc => insertRow(openTbody, doc, today, false));
+            closedDocs.forEach(doc => insertRow(closedTbody, doc, today, true));
+        }
+
+        function insertRow(tbody, doc, today, isClosed) {
+            const tr = document.createElement('tr');
+            const isEditing = (String(doc.id) === String(editingId));
+            const deadlineDate = new Date(doc.deadline);
+            const diffTime = deadlineDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (!isClosed && !isEditing) {
+                if (diffDays <= 1) tr.className = 'warn-deepred'; 
+                else if (diffDays <= 2) tr.className = 'warn-red';      
+                else if (diffDays <= 4) tr.className = 'warn-yellow';   
+            }
+
+            if (isEditing) {
+                tr.style.backgroundColor = "#e8f0fe"; 
+                tr.innerHTML = `
+                    <td>
+                        <div class="action-btns">
+                            <button type="button" class="table-btn ok-btn" onclick="confirmUpdate('${doc.id}')">確認</button>
+                            <button type="button" class="table-btn cancel-btn" onclick="cancelEdit()">取消</button>
+                        </div>
+                    </td>
+                    <td>編輯中</td>
+                    <td><input type="text" class="edit-input" id="edit_docNo_${doc.id}" value="${doc.docNo}"></td>
+                    <td><input type="text" class="edit-input" id="edit_subject_${doc.id}" value="${doc.subject}"></td>
+                    <td><input type="text" class="edit-input" id="edit_create_${doc.id}" value="${displayROC(doc.createDate)}" oninput="calculateDeadlineForEdit('${doc.id}')"></td>
+                    <td><input type="text" class="edit-input" id="edit_deadline_${doc.id}" value="${displayROC(doc.deadline)}"></td>
+                    <td colspan="2" style="text-align:center; color:#666;">(修改模式)</td>
+                `;
+            } else {
+                const statusHtml = isClosed ? '<span class="status-closed">已結案</span>' : '<span class="status-open">辦理中</span>';
+                const resultText = isClosed ? (doc.closeDate > doc.deadline ? '<span class="result-overdue">逾期結案</span>' : '<span class="result-ok">未逾期</span>') : `${diffDays} 天`;
+                const btnText = isClosed ? '修改' : '確認';
+                const dateValue = isClosed ? displayROC(doc.closeDate) : '';
+
+                tr.innerHTML = `
+                    <td>
+                        <div class="action-btns">
+                            <button type="button" class="table-btn edit-btn" onclick="editDoc('${doc.id}')">修改</button>
+                            <button type="button" class="table-btn delete-btn" onclick="deleteDoc('${doc.id}')">刪除</button>
+                        </div>
+                    </td>
+                    <td>${statusHtml}</td>
+                    <td>${doc.docNo}</td>
+                    <td><div class="subject-content" onclick="toggleSubject(this)">${doc.subject}</div></td>
+                    <td>${displayROC(doc.createDate)}</td>
+                    <td>${displayROC(doc.deadline)}</td>
+                    <td>
+                        <div style="display:flex; align-items:center; justify-content: center;">
+                            <input type="text" id="close_date_${doc.id}" value="${dateValue}" placeholder="例:1140101" style="width:90px; padding:4px;">
+                            <button type="button" class="confirm-btn" onclick="manualClose('${doc.id}')">${btnText}</button>
+                        </div>
+                    </td>
+                    <td>${resultText}</td>
+                `;
+            }
+            tbody.appendChild(tr);
+        }
+
+        function toggleSubject(el) { el.classList.toggle('expanded'); }
+        
+        function checkDateLogic() {
+            const c = document.getElementById('createDate').value.trim();
+            const d = document.getElementById('deadline').value.trim();
+            if(c && d) {
+                const ic = rocToIso(c), id = rocToIso(d);
+                if(ic && id && id < ic) alert('「二展期限」不可早於「收創日期」！');
+            }
+        }
+        
+        function rocToIso(str) {
+            if (!str) return null;
+            if (str.match(/^\d{4}-\d{2}-\d{2}$/)) return str;
+            const nums = str.replace(/[^\d]/g, '');
+            let y, m, d;
+            if (nums.length === 7) { 
+                y = parseInt(nums.substring(0,3)); m = nums.substring(3,5); d = nums.substring(5,7); 
+            } else if (str.split(/[\/\-\.]/).length === 3) { 
+                const p = str.split(/[\/\-\.]/); y = parseInt(p[0]); m = p[1].padStart(2,'0'); d = p[2].padStart(2,'0'); 
+            } else return null;
+            return `${y+1911}-${m}-${d}`;
+        }
+
+        function displayROC(isoStr) {
+            if (!isoStr) return '';
+            const date = new Date(isoStr.substring(0,10));
+            if (isNaN(date.getTime())) return '';
+            return `${date.getFullYear()-1911}/${(date.getMonth()+1).toString().padStart(2,'0')}/${date.getDate().toString().padStart(2,'0')}`;
+        }
+        
+        function checkAlerts() {
+            const today = new Date(); today.setHours(0,0,0,0);
+            let alertMsg = "", count = 0;
+            allDocs.forEach(doc => {
+                if (!doc.closeDate) {
+                    const diff = Math.ceil((new Date(doc.deadline) - today) / (86400000));
+                    if (diff <= 4) {
+                        count++;
+                        let u = diff <= 1 ? "【緊急】" : (diff <= 2 ? "【急】" : "【提醒】");
+                        alertMsg += `● ${u} 文號 ${doc.docNo} (剩 ${diff} 天)\n`;
+                    }
+                }
+            });
+            if (count > 0) setTimeout(() => alert(`【預警】有 ${count} 件需注意！\n\n${alertMsg}`), 500);
+        }
+    </script>
+</body>
+</html>
